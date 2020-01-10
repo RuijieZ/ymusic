@@ -17,10 +17,18 @@ from __future__ import print_function   # for compatibility with both python 2 a
 from subprocess import call             # for calling mplayer and lame
 from sys import argv                    # allows user to specify input and output directories
 import os                               # help with file handling
+from multiprocessing import Pool, cpu_count, Process
 
 def check_file_exists(directory, filename, extension):
     path = directory + "/" + filename + extension
     return os.path.isfile(path)
+
+def convert(indir, outdir, filename):
+    print("-- converting {0}/{2}.mp4 to {1}/{2}.mp3 --".format(indir, outdir, filename))
+    call(["mplayer", "-novideo", "-nocorrect-pts", "-ao", "pcm:waveheader", indir + "/" + filename + ".mp4"])
+    call(["lame", "-v", "audiodump.wav", outdir + "/" + filename + ".mp3"])
+    os.remove("audiodump.wav")
+
 
 def transform_dir(indir, outdir):
     try:
@@ -50,11 +58,15 @@ def transform_dir(indir, outdir):
         exit("Could not find any files to convert that have not already been converted.")
 
     # convert all unconverted files
-    for filename in files:
-        print("-- converting {0}/{2}.mp4 to {1}/{2}.mp3 --".format(indir, outdir, filename))
-        call(["mplayer", "-novideo", "-nocorrect-pts", "-ao", "pcm:waveheader", indir + "/" + filename + ".mp4"])
-        call(["lame", "-v", "audiodump.wav", outdir + "/" + filename + ".mp3"])
-        os.remove("audiodump.wav")
+
+    processes =[Process(target=convert, args=(indir, outdir, filename)) for filename in files]
+    for p in processes: p.start()
+    for p in processes: p.join()
+    # for filename in files:
+    #     print("-- converting {0}/{2}.mp4 to {1}/{2}.mp3 --".format(indir, outdir, filename))
+    #     call(["mplayer", "-novideo", "-nocorrect-pts", "-ao", "pcm:waveheader", indir + "/" + filename + ".mp4"])
+    #     call(["lame", "-v", "audiodump.wav", outdir + "/" + filename + ".mp3"])
+    #     os.remove("audiodump.wav")
 
 if __name__ == '__main__':
     # set the default directories and try to get input directories
