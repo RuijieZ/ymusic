@@ -11,7 +11,7 @@ from mp4tomp3 import transform_dir
 def read_all_urls(path):
 	try:
 		with open(path, "r") as f:
-			return [line.strip() for line in o if line[0] != "#"]
+			return [line.strip() for line in f if line[0] != "#"]
 	except Exception as e:
 		print(e)
 		print("Exception happens when reading urls")
@@ -30,15 +30,17 @@ def transform(path):
 		print("error in calling the mp4tomp3 function")
 		print(e)
 
-def download_video(url):
+def download_video(url, path):
 	try:
 		print("".format(url))
-		cmd = "youtube-dl -i -f mp4 --yes-playlist '{}'".format(url)
+		cmd = "youtube-dl -i -f mp4 --yes-playlist '{}' -o '{}/%(title)s.%(ext)s'".format(url, path)
 		returned_value = subprocess.call(cmd, shell=True)  # returns the exit code in unix
 		print('downloaded {}, returned value: {}'.format(url, returned_value))
+		return 0
 	except Exception as e:
 		print("download url: {} failed".format(url))
 		print(e)
+		return -1
 	
 
 if __name__ == '__main__':
@@ -50,8 +52,13 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     print("Step 1, read all urls......")
-    urls = read_all_urls()
+    urls = read_all_urls(args.playlist)
 
     print("Step 2, using multiprocess to download the urls")
     pool = Pool(processes=23)
-    results = [pool.apply(func, (url)) for url in urls]
+    results = [pool.apply(download_video, (url,args.download_path,)) for url in urls]
+
+    print("Step 3, transform the viedoes....")
+    transform(args.download_path)
+
+    print("Exiting...")
